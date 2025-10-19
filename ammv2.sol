@@ -299,14 +299,14 @@ contract AMMV2 {
     }
 
     // 闪电贷 A币
-    function flashSwapTokenA(uint256 amount, string memory data) external returns (bool) {
+    function flashSwapTokenA(uint256 amount, string memory data, address caller) external returns (bool) {
 
         uint256 usedAmount = IERC20(tokenAAddress).balanceOf(address(this));
         require(usedAmount >= amount, "Not enough money");
-        require(IERC20(tokenAAddress).transfer(msg.sender, amount), "Transfer error");
+        require(IERC20(tokenAAddress).transfer(caller, amount), "Transfer error");
         uint256 Fee = amount * FLASH_SWAP_FEE_PER_THOUSAND / 1000;
 
-        FLASH_SWAP_CALLER(msg.sender).callBack(amount, Fee, data);
+        FLASH_SWAP_CALLER(caller).callBack(amount, Fee, data);
         
         uint256 curAmount = IERC20(tokenAAddress).balanceOf(address(this));
         require(curAmount >= usedAmount + Fee, "Do not give back enough money");
@@ -316,14 +316,14 @@ contract AMMV2 {
     }
 
     // 闪电贷 B币
-    function flashSwapTokenB(uint256 amount, string memory data) external returns (bool) {
+    function flashSwapTokenB(uint256 amount, string memory data, address caller) external returns (bool) {
 
         uint256 usedAmount = IERC20(tokenBAddress).balanceOf(address(this));
         require(usedAmount >= amount, "Not enough money");
-        require(IERC20(tokenBAddress).transfer(msg.sender, amount), "Transfer error");
+        require(IERC20(tokenBAddress).transfer(caller, amount), "Transfer error");
         uint256 Fee = amount * FLASH_SWAP_FEE_PER_THOUSAND / 1000;
 
-        FLASH_SWAP_CALLER(msg.sender).callBack(amount, Fee, data);
+        FLASH_SWAP_CALLER(caller).callBack(amount, Fee, data);
         
         uint256 curAmount = IERC20(tokenBAddress).balanceOf(address(this));
         require(curAmount >= usedAmount + Fee, "Do not give back enough money");
