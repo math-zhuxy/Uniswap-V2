@@ -81,7 +81,7 @@ contract WBKC {
         return true;
     }
     
-    function mintToken() public payable{
+    function mintToken() public payable {
         _balances[msg.sender] += msg.value;
         totalSupply += msg.value;
     }

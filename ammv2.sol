@@ -17,6 +17,7 @@ contract AMMV2 {
     mapping(address => uint256) public userLpToken;
     uint256 public lpTokenTotalSupply;
 
+    // A、B两种代币地址
     address public tokenAAddress;
     address public tokenBAddress;
     
@@ -24,14 +25,22 @@ contract AMMV2 {
     uint256 public constant FEE_RATE = 3;
     uint256 public constant FEE_DENOMINATOR = 1000;
 
+    // Flash Swap 手续费率
     uint256 public constant FLASH_SWAP_FEE_PER_THOUSAND = 3;
     
     // 最小流动性锁定
     uint256 public constant MINIMUM_LIQUIDITY = 1000;
     
+    // 相关事件
     event AddLiquidity(address indexed user, uint256 amountA, uint256 amountB, uint256 lpTokens);
     event RemoveLiquidity(address indexed user, uint256 amountA, uint256 amountB, uint256 lpTokens);
     event Swap(address indexed user, address tokenIn, uint256 amountIn, address tokenOut, uint256 amountOut);
+
+    // TWAP 相关变量
+    uint256 public lastPrice;
+    uint256 public lastTimestamp;
+    uint256 public cumulativePrice;
+    uint256 public cumulativeTime;
     
     modifier onlyPoolOwner() {
         require(msg.sender == poolOwner, "Only pool owner can call this function");
@@ -43,6 +52,11 @@ contract AMMV2 {
         tokenAAddress = _tokenA;
         tokenBAddress = _tokenB;
         lpTokenTotalSupply = 0;
+
+        lastTimestamp = block.timestamp;
+        cumulativePrice = 0;
+        cumulativeTime = 0;
+        lastPrice = 0;
     }
 
     // Babylonian method
@@ -56,11 +70,40 @@ contract AMMV2 {
         }
         return y;
     }
+
+    // TWAP 价格更新函数
+    function updatePrice() private {
+        uint256 poolTokenANum = IERC20(tokenAAddress).balanceOf(address(this));
+        uint256 poolTokenBNum = IERC20(tokenBAddress).balanceOf(address(this));
+
+        uint256 newPrice = poolTokenANum * 1e18 / (poolTokenBNum + 1);
+        require(newPrice > 0, "Price must be positive");
+
+        uint256 currentTime = block.timestamp;
+        uint256 timeElapsed = currentTime - lastTimestamp;
+
+        // 累加 price * delta_t
+        cumulativePrice += lastPrice * timeElapsed;
+        cumulativeTime += timeElapsed;
+
+        // 更新状态
+        lastPrice = newPrice;
+        lastTimestamp = currentTime;
+    }
+
+    function GetTwapPrice() external view returns (uint256) {
+        if (cumulativeTime == 0) {
+            return 0; 
+        }
+
+        return cumulativePrice / cumulativeTime;
+    }
     
     // 添加流动性
     function addLiquidity(uint256 amountA, uint256 amountB) external returns (uint256 lpTokens) {
         uint256 poolTokenANum = IERC20(tokenAAddress).balanceOf(address(this));
         uint256 poolTokenBNum = IERC20(tokenBAddress).balanceOf(address(this));
+
         require(amountA > 0 && amountB > 0, "Invalid amounts");
         
         // 转入代币
@@ -73,9 +116,10 @@ contract AMMV2 {
             require(lpTokens > MINIMUM_LIQUIDITY, "Insufficient liquidity");
             
             // 锁定最小流动性
-            lpTokenTotalSupply = MINIMUM_LIQUIDITY;
+            lpTokenTotalSupply = lpTokens;
+            userLpToken[msg.sender] = lpTokens - MINIMUM_LIQUIDITY;
             userLpToken[address(0)] = MINIMUM_LIQUIDITY;
-            lpTokens -= MINIMUM_LIQUIDITY;
+
         } else {
             // 后续添加流动性，按比例计算
             uint256 lpTokensA = (amountA * lpTokenTotalSupply) / poolTokenANum;
@@ -86,10 +130,9 @@ contract AMMV2 {
         require(lpTokens > 0, "Insufficient LP tokens");
         
         // 更新状态
-        poolTokenANum += amountA;
-        poolTokenBNum += amountB;
         lpTokenTotalSupply += lpTokens;
         userLpToken[msg.sender] += lpTokens;
+        updatePrice();
         
         emit AddLiquidity(msg.sender, amountA, amountB, lpTokens);
     }
@@ -111,8 +154,7 @@ contract AMMV2 {
         // 更新状态
         userLpToken[msg.sender] -= lpTokens;
         lpTokenTotalSupply -= lpTokens;
-        poolTokenANum -= amountA;
-        poolTokenBNum -= amountB;
+        updatePrice();
         
         // 转出代币
         require(IERC20(tokenAAddress).transfer(msg.sender, amountA), "Transfer A failed");
@@ -143,10 +185,8 @@ contract AMMV2 {
         
         // 转出代币B
         require(IERC20(tokenBAddress).transfer(msg.sender, amountBOut), "Transfer B failed");
-        
-        // 更新池子状态
-        poolTokenANum += amountAIn;
-        poolTokenBNum -= amountBOut;
+
+        updatePrice();
         
         emit Swap(msg.sender, tokenAAddress, amountAIn, tokenBAddress, amountBOut);
     }
@@ -173,10 +213,8 @@ contract AMMV2 {
         
         // 转出代币A
         require(IERC20(tokenAAddress).transfer(msg.sender, amountAOut), "Transfer A failed");
-        
-        // 更新池子状态
-        poolTokenBNum += amountBIn;
-        poolTokenANum -= amountAOut;
+
+        updatePrice();
         
         emit Swap(msg.sender, tokenBAddress, amountBIn, tokenAAddress, amountAOut);
     }
@@ -211,8 +249,8 @@ contract AMMV2 {
         uint256 poolTokenBNum = IERC20(tokenBAddress).balanceOf(address(this));
 
         if (poolTokenANum > 0 && poolTokenBNum > 0) {
-            rateAToB = (poolTokenBNum * 1e18) / poolTokenANum;
-            rateBToA = (poolTokenANum * 1e18) / poolTokenBNum;
+            rateAToB = (poolTokenBNum * 1e18) / (poolTokenANum + 1);
+            rateBToA = (poolTokenANum * 1e18) / (poolTokenBNum + 1);
         }
         else {
             rateAToB = 0;
@@ -250,6 +288,8 @@ contract AMMV2 {
         if (balanceB > 0) {
             IERC20(tokenBAddress).transfer(poolOwner, balanceB);
         }
+
+        updatePrice();
     }
     
     // 转移池子所有权
@@ -270,6 +310,8 @@ contract AMMV2 {
         
         uint256 curAmount = IERC20(tokenAAddress).balanceOf(address(this));
         require(curAmount >= usedAmount + Fee, "Do not give back enough money");
+
+        updatePrice();
         return true;
     }
 
@@ -285,6 +327,8 @@ contract AMMV2 {
         
         uint256 curAmount = IERC20(tokenBAddress).balanceOf(address(this));
         require(curAmount >= usedAmount + Fee, "Do not give back enough money");
+
+        updatePrice();
         return true;
     }
 }
