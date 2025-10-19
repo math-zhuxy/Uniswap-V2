@@ -8,6 +8,10 @@ interface IERC20 {
     function approve(address spender, uint256 amount) external returns (bool);
 }
 
+interface FLASH_SWAP_CALLER {
+    function callBack(uint256 amount, uint256 fee, string memory data) external returns (bool);
+}
+
 contract AMMV2 {
     address public poolOwner;
     mapping(address => uint256) public userLpToken;
@@ -15,12 +19,12 @@ contract AMMV2 {
 
     address public tokenAAddress;
     address public tokenBAddress;
-    uint256 public poolTokenANum;
-    uint256 public poolTokenBNum;
     
     // 手续费率 (千分之三)
     uint256 public constant FEE_RATE = 3;
     uint256 public constant FEE_DENOMINATOR = 1000;
+
+    uint256 public constant FLASH_SWAP_FEE_PER_THOUSAND = 3;
     
     // 最小流动性锁定
     uint256 public constant MINIMUM_LIQUIDITY = 1000;
@@ -38,13 +42,25 @@ contract AMMV2 {
         poolOwner = msg.sender;
         tokenAAddress = _tokenA;
         tokenBAddress = _tokenB;
-        poolTokenANum = 0;
-        poolTokenBNum = 0;
         lpTokenTotalSupply = 0;
+    }
+
+    // Babylonian method
+    function sqrt(uint256 x) internal pure returns (uint256) {
+        if (x == 0) return 0;
+        uint256 z = (x + 1) / 2;
+        uint256 y = x;
+        while (z < y) {
+            y = z;
+            z = (x / z + z) / 2;
+        }
+        return y;
     }
     
     // 添加流动性
     function addLiquidity(uint256 amountA, uint256 amountB) external returns (uint256 lpTokens) {
+        uint256 poolTokenANum = IERC20(tokenAAddress).balanceOf(address(this));
+        uint256 poolTokenBNum = IERC20(tokenBAddress).balanceOf(address(this));
         require(amountA > 0 && amountB > 0, "Invalid amounts");
         
         // 转入代币
@@ -80,6 +96,9 @@ contract AMMV2 {
     
     // 移除流动性
     function removeLiquidity(uint256 lpTokens) external returns (uint256 amountA, uint256 amountB) {
+        uint256 poolTokenANum = IERC20(tokenAAddress).balanceOf(address(this));
+        uint256 poolTokenBNum = IERC20(tokenBAddress).balanceOf(address(this));
+
         require(lpTokens > 0, "Invalid LP tokens");
         require(userLpToken[msg.sender] >= lpTokens, "Insufficient LP tokens");
         
@@ -104,6 +123,9 @@ contract AMMV2 {
     
     // 代币兑换 - A换B
     function swapAForB(uint256 amountAIn) external returns (uint256 amountBOut) {
+        uint256 poolTokenANum = IERC20(tokenAAddress).balanceOf(address(this));
+        uint256 poolTokenBNum = IERC20(tokenBAddress).balanceOf(address(this));
+
         require(amountAIn > 0, "Invalid amount");
         require(poolTokenANum > 0 && poolTokenBNum > 0, "Pool not initialized");
         
@@ -131,6 +153,9 @@ contract AMMV2 {
     
     // 代币兑换 - B换A
     function swapBForA(uint256 amountBIn) external returns (uint256 amountAOut) {
+        uint256 poolTokenANum = IERC20(tokenAAddress).balanceOf(address(this));
+        uint256 poolTokenBNum = IERC20(tokenBAddress).balanceOf(address(this));
+
         require(amountBIn > 0, "Invalid amount");
         require(poolTokenANum > 0 && poolTokenBNum > 0, "Pool not initialized");
         
@@ -158,6 +183,9 @@ contract AMMV2 {
     
     // 获取兑换报价 - A换B
     function getAmountBOut(uint256 amountAIn) external view returns (uint256 amountBOut) {
+        uint256 poolTokenANum = IERC20(tokenAAddress).balanceOf(address(this));
+        uint256 poolTokenBNum = IERC20(tokenBAddress).balanceOf(address(this));
+
         require(amountAIn > 0, "Invalid amount");
         require(poolTokenANum > 0 && poolTokenBNum > 0, "Pool not initialized");
         
@@ -167,6 +195,9 @@ contract AMMV2 {
     
     // 获取兑换报价 - B换A
     function getAmountAOut(uint256 amountBIn) external view returns (uint256 amountAOut) {
+        uint256 poolTokenANum = IERC20(tokenAAddress).balanceOf(address(this));
+        uint256 poolTokenBNum = IERC20(tokenBAddress).balanceOf(address(this));
+
         require(amountBIn > 0, "Invalid amount");
         require(poolTokenANum > 0 && poolTokenBNum > 0, "Pool not initialized");
         
@@ -176,9 +207,16 @@ contract AMMV2 {
     
     // 获取当前汇率
     function getExchangeRate() external view returns (uint256 rateAToB, uint256 rateBToA) {
+        uint256 poolTokenANum = IERC20(tokenAAddress).balanceOf(address(this));
+        uint256 poolTokenBNum = IERC20(tokenBAddress).balanceOf(address(this));
+
         if (poolTokenANum > 0 && poolTokenBNum > 0) {
             rateAToB = (poolTokenBNum * 1e18) / poolTokenANum;
             rateBToA = (poolTokenANum * 1e18) / poolTokenBNum;
+        }
+        else {
+            rateAToB = 0;
+            rateBToA = 0;
         }
     }
     
@@ -194,22 +232,11 @@ contract AMMV2 {
         uint256 totalLPSupply,
         uint256 k
     ) {
-        tokenABalance = poolTokenANum;
-        tokenBBalance = poolTokenBNum;
+
+        tokenABalance = IERC20(tokenAAddress).balanceOf(address(this));
+        tokenBBalance = IERC20(tokenBAddress).balanceOf(address(this));
         totalLPSupply = lpTokenTotalSupply;
-        k = poolTokenANum * poolTokenBNum;
-    }
-    
-    // Babylonian method
-    function sqrt(uint256 x) internal pure returns (uint256) {
-        if (x == 0) return 0;
-        uint256 z = (x + 1) / 2;
-        uint256 y = x;
-        while (z < y) {
-            y = z;
-            z = (x / z + z) / 2;
-        }
-        return y;
+        k = tokenABalance * tokenBBalance;
     }
     
     // 紧急提取函数
@@ -229,5 +256,35 @@ contract AMMV2 {
     function transferOwnership(address newOwner) external onlyPoolOwner {
         require(newOwner != address(0), "Invalid address");
         poolOwner = newOwner;
+    }
+
+    // 闪电贷 A币
+    function flashSwapTokenA(uint256 amount, string memory data) external returns (bool) {
+
+        uint256 usedAmount = IERC20(tokenAAddress).balanceOf(address(this));
+        require(usedAmount >= amount, "Not enough money");
+        require(IERC20(tokenAAddress).transfer(msg.sender, amount), "Transfer error");
+        uint256 Fee = amount * FLASH_SWAP_FEE_PER_THOUSAND / 1000;
+
+        FLASH_SWAP_CALLER(msg.sender).callBack(amount, Fee, data);
+        
+        uint256 curAmount = IERC20(tokenAAddress).balanceOf(address(this));
+        require(curAmount >= usedAmount + Fee, "Do not give back enough money");
+        return true;
+    }
+
+    // 闪电贷 B币
+    function flashSwapTokenB(uint256 amount, string memory data) external returns (bool) {
+
+        uint256 usedAmount = IERC20(tokenBAddress).balanceOf(address(this));
+        require(usedAmount >= amount, "Not enough money");
+        require(IERC20(tokenBAddress).transfer(msg.sender, amount), "Transfer error");
+        uint256 Fee = amount * FLASH_SWAP_FEE_PER_THOUSAND / 1000;
+
+        FLASH_SWAP_CALLER(msg.sender).callBack(amount, Fee, data);
+        
+        uint256 curAmount = IERC20(tokenBAddress).balanceOf(address(this));
+        require(curAmount >= usedAmount + Fee, "Do not give back enough money");
+        return true;
     }
 }
