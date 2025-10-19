@@ -3,7 +3,6 @@ pragma solidity >= 0.8.0;
 contract ERC20Token {
     string public name;
     string public symbol;
-    uint8 public decimals;
     uint256 public totalSupply;
     
     address public coinOwner;
@@ -21,11 +20,10 @@ contract ERC20Token {
         _;
     }
     
-    constructor() {
-        name = "ERC20Coin";
+    constructor(string memory _name, uint256 _totalSupply) {
+        name = _name;
         symbol = "E20C";
-        decimals = 4;
-        totalSupply = 10 ** 5;
+        totalSupply = _totalSupply;
         coinOwner = msg.sender;
         
         _balances[msg.sender] = totalSupply;

@@ -3,7 +3,6 @@ pragma solidity >= 0.8.0;
 contract WBKC {
     string public name;
     string public symbol;
-    uint8 public decimals;
     uint256 public totalSupply;
     
     address public coinOwner;
@@ -15,10 +14,9 @@ contract WBKC {
     event Transfer(address indexed from, address indexed to, uint256 value);
     event Approval(address indexed owner, address indexed spender, uint256 value);
     
-    constructor() {
-        name = "wrappedBrokerCoin";
+    constructor(string memory _name) {
+        name = _name;
         symbol = "wBKC";
-        decimals = 4;
         totalSupply = 0;
         coinOwner = msg.sender;
     }
