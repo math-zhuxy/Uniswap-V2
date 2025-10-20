@@ -30,6 +30,9 @@ contract AMMV2 {
     
     // 最小流动性锁定
     uint256 public constant MINIMUM_LIQUIDITY = 1000;
+
+    // 池名称
+    string public POOL_NAME;
     
     // 相关事件
     event AddLiquidity(address indexed user, uint256 amountA, uint256 amountB, uint256 lpTokens);
@@ -47,7 +50,7 @@ contract AMMV2 {
         _;
     }
     
-    constructor(address _tokenA, address _tokenB) {
+    constructor(address _tokenA, address _tokenB, string memory _pool_name) {
         poolOwner = msg.sender;
         tokenAAddress = _tokenA;
         tokenBAddress = _tokenB;
@@ -57,6 +60,13 @@ contract AMMV2 {
         cumulativePrice = 0;
         cumulativeTime = 0;
         lastPrice = 0;
+
+        POOL_NAME = _pool_name;
+    }
+
+    // 智能合约类型
+    function getContractName() external pure returns (string memory) {
+        return "amm";
     }
 
     // Babylonian method

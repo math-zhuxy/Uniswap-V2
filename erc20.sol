@@ -29,6 +29,11 @@ contract ERC20Token {
         _balances[msg.sender] = totalSupply;
         emit Transfer(address(0), msg.sender, totalSupply);
     }
+
+    // 智能合约类型
+    function getContractName() external pure returns (string memory) {
+        return "erc20";
+    }
     
     function balanceOf(address account) public view returns (uint256) {
         return _balances[account];

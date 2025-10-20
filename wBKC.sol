@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >= 0.8.0;
-contract WBKC {
+contract WETH {
     string public name;
     string public symbol;
     uint256 public totalSupply;
@@ -19,6 +19,11 @@ contract WBKC {
         symbol = "wBKC";
         totalSupply = 0;
         coinOwner = msg.sender;
+    }
+
+    // 智能合约类型
+    function getContractName() external pure returns (string memory) {
+        return "weth";
     }
     
     function balanceOf(address account) public view returns (uint256) {
