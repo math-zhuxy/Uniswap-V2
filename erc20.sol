@@ -31,7 +31,7 @@ contract ERC20Token {
     }
 
     // 智能合约类型
-    function getContractName() external pure returns (string memory) {
+    function getContractType() external pure returns (string memory) {
         return "erc20";
     }
     

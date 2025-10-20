@@ -65,7 +65,7 @@ contract AMMV2 {
     }
 
     // 智能合约类型
-    function getContractName() external pure returns (string memory) {
+    function getContractType() external pure returns (string memory) {
         return "amm";
     }
 
