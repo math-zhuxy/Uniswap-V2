@@ -14,6 +14,7 @@ interface FLASH_SWAP_CALLER {
 
 contract AMMV2 {
     address public poolOwner;
+    string public pool_img_url;
     mapping(address => uint256) public userLpToken;
     uint256 public lpTokenTotalSupply;
 
@@ -50,11 +51,13 @@ contract AMMV2 {
         _;
     }
     
-    constructor(address _tokenA, address _tokenB, string memory _pool_name) {
+    constructor(address _tokenA, address _tokenB, string memory _pool_name, string memory _url) {
         poolOwner = msg.sender;
         tokenAAddress = _tokenA;
         tokenBAddress = _tokenB;
         lpTokenTotalSupply = 0;
+
+        pool_img_url = _url;
 
         lastTimestamp = block.timestamp;
         cumulativePrice = 0;

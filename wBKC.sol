@@ -3,6 +3,8 @@ pragma solidity >= 0.8.0;
 contract WETH {
     string public name;
     string public symbol;
+    string public coin_img_url;
+
     uint256 public totalSupply;
     
     address public coinOwner;
@@ -14,9 +16,11 @@ contract WETH {
     event Transfer(address indexed from, address indexed to, uint256 value);
     event Approval(address indexed owner, address indexed spender, uint256 value);
     
-    constructor(string memory _name) {
+    constructor(string memory _name, string memory _url) {
         name = _name;
         symbol = "wBKC";
+        coin_img_url = _url;
+
         totalSupply = 0;
         coinOwner = msg.sender;
     }
