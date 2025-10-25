@@ -9,14 +9,16 @@ interface IERC20 {
 }
 
 interface FLASH_SWAP_CALLER {
-    function callBack(uint256 amount, uint256 fee, string memory data) external returns (bool);
+    function callBack(uint256 amount, uint256 fee, uint256 data) external returns (bool);
 }
 
 contract AMMV2 {
     address public poolOwner;
-    string public pool_img_url;
+    uint256 public pool_img_url;
     mapping(address => uint256) public userLpToken;
     uint256 public lpTokenTotalSupply;
+
+    uint256 public contract_type;
 
     // A、B两种代币地址
     address public tokenAAddress;
@@ -33,7 +35,7 @@ contract AMMV2 {
     uint256 public constant MINIMUM_LIQUIDITY = 1000;
 
     // 池名称
-    string public POOL_NAME;
+    uint256 public POOL_NAME;
     
     // 相关事件
     event AddLiquidity(address indexed user, uint256 amountA, uint256 amountB, uint256 lpTokens);
@@ -51,7 +53,8 @@ contract AMMV2 {
         _;
     }
     
-    constructor(address _tokenA, address _tokenB, string memory _pool_name, string memory _url) {
+    constructor(address _tokenA, address _tokenB, uint256 _pool_name, uint256 _url) {
+        contract_type = 2;
         poolOwner = msg.sender;
         tokenAAddress = _tokenA;
         tokenBAddress = _tokenB;
@@ -65,11 +68,6 @@ contract AMMV2 {
         lastPrice = 0;
 
         POOL_NAME = _pool_name;
-    }
-
-    // 智能合约类型
-    function getContractType() external pure returns (string memory) {
-        return "amm";
     }
 
     // Babylonian method
@@ -312,7 +310,7 @@ contract AMMV2 {
     }
 
     // 闪电贷 A币
-    function flashSwapTokenA(uint256 amount, string memory data, address caller) external returns (bool) {
+    function flashSwapTokenA(uint256 amount, uint256 data, address caller) external returns (bool) {
 
         uint256 usedAmount = IERC20(tokenAAddress).balanceOf(address(this));
         require(usedAmount >= amount, "Not enough money");
@@ -329,7 +327,7 @@ contract AMMV2 {
     }
 
     // 闪电贷 B币
-    function flashSwapTokenB(uint256 amount, string memory data, address caller) external returns (bool) {
+    function flashSwapTokenB(uint256 amount, uint256 data, address caller) external returns (bool) {
 
         uint256 usedAmount = IERC20(tokenBAddress).balanceOf(address(this));
         require(usedAmount >= amount, "Not enough money");

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >= 0.8.0;
 contract ERC20Token {
-    string public name;
-    string public symbol;
-    string public coin_img_url;
+    uint256 public contract_type;
+    uint256 public coin_name;
+    uint256 public img_coin_url;
     
     uint256 public totalSupply;
     
@@ -22,21 +22,17 @@ contract ERC20Token {
         _;
     }
     
-    constructor(string memory _name, string memory _url, uint256 _totalSupply) {
-        name = _name;
-        symbol = "E20C";
+    constructor(uint256 _name, uint256 _totalSupply, uint256 _url) {
+        contract_type = 0;
         totalSupply = _totalSupply;
         coinOwner = msg.sender;
 
-        coin_img_url = _url;
+        coin_name = _name;
+
+        img_coin_url = _url;
         
         _balances[msg.sender] = totalSupply;
         emit Transfer(address(0), msg.sender, totalSupply);
-    }
-
-    // 智能合约类型
-    function getContractType() external pure returns (string memory) {
-        return "erc20";
     }
     
     function balanceOf(address account) public view returns (uint256) {

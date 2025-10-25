@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >= 0.8.0;
 contract WETH {
-    string public name;
-    string public symbol;
-    string public coin_img_url;
+    uint256 public contract_type;
+    uint256 public coin_name;
+    uint256 public img_coin_url;
 
     uint256 public totalSupply;
     
@@ -16,18 +16,13 @@ contract WETH {
     event Transfer(address indexed from, address indexed to, uint256 value);
     event Approval(address indexed owner, address indexed spender, uint256 value);
     
-    constructor(string memory _name, string memory _url) {
-        name = _name;
-        symbol = "wBKC";
-        coin_img_url = _url;
+    constructor(uint256 _name, uint256 _url) {
+        contract_type = 1;
+        coin_name = _name;
+        img_coin_url = _url;
 
         totalSupply = 0;
         coinOwner = msg.sender;
-    }
-
-    // 智能合约类型
-    function getContractType() external pure returns (string memory) {
-        return "weth";
     }
     
     function balanceOf(address account) public view returns (uint256) {
