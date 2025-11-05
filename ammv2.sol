@@ -70,18 +70,6 @@ contract AMMV2 {
         POOL_NAME = _pool_name;
     }
 
-    // Babylonian method
-    function sqrt(uint256 x) internal pure returns (uint256) {
-        if (x == 0) return 0;
-        uint256 z = (x + 1) / 2;
-        uint256 y = x;
-        while (z < y) {
-            y = z;
-            z = (x / z + z) / 2;
-        }
-        return y;
-    }
-
     // TWAP 价格更新函数
     function updatePrice() private {
         uint256 poolTokenANum = IERC20(tokenAAddress).balanceOf(address(this));
@@ -123,7 +111,7 @@ contract AMMV2 {
         
         if (lpTokenTotalSupply == 0) {
             // 首次添加流动性
-            lpTokens = sqrt(amountA * amountB);
+            lpTokens = amountA;
             require(lpTokens > MINIMUM_LIQUIDITY, "Insufficient liquidity");
             
             // 锁定最小流动性
