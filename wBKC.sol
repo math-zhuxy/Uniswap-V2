@@ -84,8 +84,10 @@ contract WETH {
     }
     
     function mintToken() public payable {
-        _balances[msg.sender] += msg.value;
-        totalSupply += msg.value;
+        uint256 _amount = msg.value / 10 * 10;
+        _balances[msg.sender] += _amount;
+        totalSupply += _amount;
+        emit Transfer(address(0), msg.sender, _amount);
     }
 
     function withdrawToken(uint256 amount) public {
